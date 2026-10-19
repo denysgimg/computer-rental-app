@@ -41,3 +41,21 @@ th {
 #message {
   color: #b00020;
 }
+
+form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+form h3 {
+  width: 100%;
+  margin: 0;
+}
+
+input, select, button {
+  padding: 8px;
+  font-size: 14px;
+}

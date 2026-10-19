@@ -31,6 +31,14 @@
       "cpu": "AMD Ryzen 7",
       "ram": 16,
       "status": "available"
+    },
+    {
+      "name": "PC Test",
+      "type": "ПК",
+      "cpu": "sjdofjsdfo",
+      "ram": 5,
+      "status": "available",
+      "id": "9uLVBunm8uI"
     }
   ],
   "clients": [
@@ -75,5 +83,6 @@
       "endDate": "2026-10-12",
       "status": "returned"
     }
-  ]
+  ],
+  "$schema": "./node_modules/json-server/schema.json"
 }

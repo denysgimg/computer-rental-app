@@ -42,8 +42,59 @@ function renderComputers(computers) {
   }
 }
 
-function showMessage(text) {
-  document.getElementById("message").textContent = text;
+function showMessage(text, isError = true) {
+  const message = document.getElementById("message");
+  message.textContent = text;
+  message.style.color = isError ? "#b00020" : "#1b7f3b";
 }
+
+function validateComputer(data) {
+  if (data.name === "") {
+    return "Назва не може бути порожньою.";
+  }
+  if (data.cpu === "") {
+    return "Вкажіть процесор.";
+  }
+  if (!Number.isInteger(data.ram) || data.ram <= 0) {
+    return "ОЗП має бути цілим додатним числом.";
+  }
+  return null;
+}
+
+async function addComputer(event) {
+  event.preventDefault();
+
+  const data = {
+    name: document.getElementById("name").value.trim(),
+    type: document.getElementById("type").value,
+    cpu: document.getElementById("cpu").value.trim(),
+    ram: Number(document.getElementById("ram").value),
+    status: "available",
+  };
+
+  const error = validateComputer(data);
+  if (error) {
+    showMessage(error);
+    return;
+  }
+
+  try {
+    const response = await fetch(`${API_URL}/computers`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    });
+    if (!response.ok) {
+      throw new Error("Помилка сервера: " + response.status);
+    }
+    event.target.reset();
+    showMessage("Комп'ютер додано.", false);
+    loadComputers();
+  } catch (error) {
+    showMessage("Не вдалося зберегти комп'ютер. Перевірте json-server.");
+  }
+}
+
+document.getElementById("computer-form").addEventListener("submit", addComputer);
 
 loadComputers();
