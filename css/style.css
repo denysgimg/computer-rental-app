@@ -84,3 +84,10 @@ td button {
   flex: 1;
   min-width: 220px;
 }
+
+footer {
+  text-align: center;
+  color: #6b7785;
+  font-size: 13px;
+  padding: 24px 16px;
+}
