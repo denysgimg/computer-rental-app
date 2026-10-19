@@ -31,14 +31,6 @@
       "cpu": "AMD Ryzen 7",
       "ram": 16,
       "status": "available"
-    },
-    {
-      "name": "PC Test",
-      "type": "ПК",
-      "cpu": "Intel Core i9",
-      "ram": 32,
-      "status": "available",
-      "id": "9uLVBunm8uI"
     }
   ],
   "clients": [

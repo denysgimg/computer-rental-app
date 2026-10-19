@@ -21,6 +21,10 @@ main {
   padding: 0 16px;
 }
 
+section + section {
+  margin-top: 40px;
+}
+
 table {
   width: 100%;
   border-collapse: collapse;
@@ -37,7 +41,7 @@ th {
   background: #e8edf2;
 }
 
-#message {
+#message, #booking-message {
   min-height: 1.2em;
 }
 
@@ -52,6 +56,12 @@ form {
 form h3 {
   width: 100%;
   margin: 0;
+}
+
+label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 
 input, select, button {

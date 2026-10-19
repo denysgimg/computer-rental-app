@@ -65,6 +65,34 @@
         <tbody id="computers-body"></tbody>
       </table>
     </section>
+
+    <section id="bookings">
+      <h2>Бронювання</h2>
+      <p id="booking-message"></p>
+
+      <form id="booking-form">
+        <h3>Нове бронювання</h3>
+        <select id="booking-computer"></select>
+        <select id="booking-client"></select>
+        <label>Початок <input type="date" id="booking-start"></label>
+        <label>Завершення <input type="date" id="booking-end"></label>
+        <button type="submit">Забронювати</button>
+      </form>
+
+      <table>
+        <thead>
+          <tr>
+            <th>Комп'ютер</th>
+            <th>Клієнт</th>
+            <th>Початок</th>
+            <th>Завершення</th>
+            <th>Статус</th>
+            <th>Дії</th>
+          </tr>
+        </thead>
+        <tbody id="bookings-body"></tbody>
+      </table>
+    </section>
   </main>
 
   <script src="js/app.js"></script>
