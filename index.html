@@ -13,12 +13,20 @@
   </header>
 
   <main>
-    <!-- Початкова заготовка етапу №1. Інтерфейс буде розвиватися на наступних етапах. -->
-    <section id="computers">
-      <h2>Комп'ютери</h2>
-      <p>Тут буде список комп'ютерів із даних db.json.</p>
-    </section>
-  </main>
+  <section id="computers">
+    <h2>Комп'ютери</h2>
+    <p id="message"></p>
+    <table>
+      <thead>
+        <tr>
+          <th>ID</th><th>Назва</th><th>Тип</th>
+          <th>Процесор</th><th>ОЗП, ГБ</th><th>Статус</th>
+        </tr>
+      </thead>
+      <tbody id="computers-body"></tbody>
+    </table>
+  </section>
+</main>
 
   <script src="js/app.js"></script>
 </body>
