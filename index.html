@@ -13,31 +13,39 @@
   </header>
 
   <main>
-  <section id="computers">
-    <h2>Комп'ютери</h2>
-    <p id="message"></p>
-    <form id="computer-form">
-  <h3>Додати комп'ютер</h3>
-  <input type="text" id="name" placeholder="Назва">
-  <select id="type">
-    <option value="ноутбук">ноутбук</option>
-    <option value="ПК">ПК</option>
-  </select>
-  <input type="text" id="cpu" placeholder="Процесор">
-  <input type="number" id="ram" placeholder="ОЗП, ГБ">
-  <button type="submit">Додати</button>
-</form>
-    <table>
-      <thead>
-        <tr>
-          <th>ID</th><th>Назва</th><th>Тип</th>
-          <th>Процесор</th><th>ОЗП, ГБ</th><th>Статус</th>
-        </tr>
-      </thead>
-      <tbody id="computers-body"></tbody>
-    </table>
-  </section>
-</main>
+    <section id="computers">
+      <h2>Комп'ютери</h2>
+      <p id="message"></p>
+
+      <form id="computer-form">
+        <h3 id="form-title">Додати комп'ютер</h3>
+        <input type="text" id="name" placeholder="Назва">
+        <select id="type">
+          <option value="ноутбук">ноутбук</option>
+          <option value="ПК">ПК</option>
+        </select>
+        <input type="text" id="cpu" placeholder="Процесор">
+        <input type="number" id="ram" placeholder="ОЗП, ГБ">
+        <button type="submit" id="submit-button">Додати</button>
+        <button type="button" id="cancel-button" hidden>Скасувати</button>
+      </form>
+
+      <table>
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Назва</th>
+            <th>Тип</th>
+            <th>Процесор</th>
+            <th>ОЗП, ГБ</th>
+            <th>Статус</th>
+            <th>Дії</th>
+          </tr>
+        </thead>
+        <tbody id="computers-body"></tbody>
+      </table>
+    </section>
+  </main>
 
   <script src="js/app.js"></script>
 </body>

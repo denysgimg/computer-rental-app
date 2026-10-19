@@ -6,6 +6,8 @@ const STATUS_LABELS = {
   rented: "Виданий",
 };
 
+let editingId = null;
+
 async function loadComputers() {
   try {
     const response = await fetch(`${API_URL}/computers`);
@@ -38,6 +40,20 @@ function renderComputers(computers) {
       cell.textContent = value;
       row.appendChild(cell);
     }
+
+    const actionsCell = document.createElement("td");
+
+    const editButton = document.createElement("button");
+    editButton.textContent = "Редагувати";
+    editButton.addEventListener("click", () => startEdit(computer));
+
+    const deleteButton = document.createElement("button");
+    deleteButton.textContent = "Видалити";
+    deleteButton.addEventListener("click", () => deleteComputer(computer));
+
+    actionsCell.append(editButton, deleteButton);
+    row.appendChild(actionsCell);
+
     tbody.appendChild(row);
   }
 }
@@ -61,7 +77,7 @@ function validateComputer(data) {
   return null;
 }
 
-async function addComputer(event) {
+async function saveComputer(event) {
   event.preventDefault();
 
   const data = {
@@ -69,7 +85,6 @@ async function addComputer(event) {
     type: document.getElementById("type").value,
     cpu: document.getElementById("cpu").value.trim(),
     ram: Number(document.getElementById("ram").value),
-    status: "available",
   };
 
   const error = validateComputer(data);
@@ -78,23 +93,75 @@ async function addComputer(event) {
     return;
   }
 
+  const isEdit = editingId !== null;
+  if (!isEdit) {
+    data.status = "available";
+  }
+
+  const url = isEdit ? `${API_URL}/computers/${editingId}` : `${API_URL}/computers`;
+  const method = isEdit ? "PATCH" : "POST";
+
   try {
-    const response = await fetch(`${API_URL}/computers`, {
-      method: "POST",
+    const response = await fetch(url, {
+      method: method,
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(data),
     });
     if (!response.ok) {
       throw new Error("Помилка сервера: " + response.status);
     }
-    event.target.reset();
-    showMessage("Комп'ютер додано.", false);
+    resetForm();
+    showMessage(isEdit ? "Зміни збережено." : "Комп'ютер додано.", false);
     loadComputers();
   } catch (error) {
     showMessage("Не вдалося зберегти комп'ютер. Перевірте json-server.");
   }
 }
 
-document.getElementById("computer-form").addEventListener("submit", addComputer);
+function startEdit(computer) {
+  editingId = computer.id;
+  document.getElementById("name").value = computer.name;
+  document.getElementById("type").value = computer.type;
+  document.getElementById("cpu").value = computer.cpu;
+  document.getElementById("ram").value = computer.ram;
+  document.getElementById("form-title").textContent = "Редагувати комп'ютер";
+  document.getElementById("submit-button").textContent = "Зберегти";
+  document.getElementById("cancel-button").hidden = false;
+  showMessage("");
+}
+
+function resetForm() {
+  editingId = null;
+  document.getElementById("computer-form").reset();
+  document.getElementById("form-title").textContent = "Додати комп'ютер";
+  document.getElementById("submit-button").textContent = "Додати";
+  document.getElementById("cancel-button").hidden = true;
+}
+
+async function deleteComputer(computer) {
+  if (computer.status !== "available") {
+    showMessage("Не можна видалити комп'ютер, який заброньований або виданий.");
+    return;
+  }
+  if (!confirm(`Видалити «${computer.name}»?`)) {
+    return;
+  }
+
+  try {
+    const response = await fetch(`${API_URL}/computers/${computer.id}`, {
+      method: "DELETE",
+    });
+    if (!response.ok) {
+      throw new Error("Помилка сервера: " + response.status);
+    }
+    showMessage("Комп'ютер видалено.", false);
+    loadComputers();
+  } catch (error) {
+    showMessage("Не вдалося видалити комп'ютер.");
+  }
+}
+
+document.getElementById("computer-form").addEventListener("submit", saveComputer);
+document.getElementById("cancel-button").addEventListener("click", resetForm);
 
 loadComputers();

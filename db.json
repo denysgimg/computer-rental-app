@@ -35,8 +35,8 @@
     {
       "name": "PC Test",
       "type": "ПК",
-      "cpu": "sjdofjsdfo",
-      "ram": 5,
+      "cpu": "Intel Core i9",
+      "ram": 32,
       "status": "available",
       "id": "9uLVBunm8uI"
     }
