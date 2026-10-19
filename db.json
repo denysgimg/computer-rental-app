@@ -1,0 +1,79 @@
+{
+  "computers": [
+    {
+      "id": "1",
+      "name": "Ноутбук Lenovo IdeaPad 3",
+      "type": "ноутбук",
+      "cpu": "Intel Core i5",
+      "ram": 8,
+      "status": "available"
+    },
+    {
+      "id": "2",
+      "name": "ПК Office-01",
+      "type": "ПК",
+      "cpu": "AMD Ryzen 5",
+      "ram": 16,
+      "status": "booked"
+    },
+    {
+      "id": "3",
+      "name": "Ігровий ПК Gamer-01",
+      "type": "ПК",
+      "cpu": "Intel Core i7",
+      "ram": 32,
+      "status": "rented"
+    },
+    {
+      "id": "4",
+      "name": "Ноутбук Acer Aspire 5",
+      "type": "ноутбук",
+      "cpu": "AMD Ryzen 7",
+      "ram": 16,
+      "status": "available"
+    }
+  ],
+  "clients": [
+    {
+      "id": "1",
+      "name": "Іван Приклад",
+      "phone": "+380000000001"
+    },
+    {
+      "id": "2",
+      "name": "Марія Навчальна",
+      "phone": "+380000000002"
+    },
+    {
+      "id": "3",
+      "name": "Олег Тестовий",
+      "phone": "+380000000003"
+    }
+  ],
+  "bookings": [
+    {
+      "id": "1",
+      "computerId": "2",
+      "clientId": "1",
+      "startDate": "2026-10-21",
+      "endDate": "2026-10-23",
+      "status": "booked"
+    },
+    {
+      "id": "2",
+      "computerId": "3",
+      "clientId": "2",
+      "startDate": "2026-10-17",
+      "endDate": "2026-10-20",
+      "status": "rented"
+    },
+    {
+      "id": "3",
+      "computerId": "1",
+      "clientId": "3",
+      "startDate": "2026-10-10",
+      "endDate": "2026-10-12",
+      "status": "returned"
+    }
+  ]
+}
