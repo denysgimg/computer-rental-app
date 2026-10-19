@@ -62,3 +62,15 @@ input, select, button {
 td button {
   margin-right: 6px;
 }
+
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.toolbar input {
+  flex: 1;
+  min-width: 220px;
+}

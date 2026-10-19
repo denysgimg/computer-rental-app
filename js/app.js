@@ -6,6 +6,7 @@ const STATUS_LABELS = {
   rented: "Виданий",
 };
 
+let allComputers = [];
 let editingId = null;
 
 async function loadComputers() {
@@ -14,16 +15,52 @@ async function loadComputers() {
     if (!response.ok) {
       throw new Error("Помилка сервера: " + response.status);
     }
-    const computers = await response.json();
-    renderComputers(computers);
+    allComputers = await response.json();
+    applyFilters();
   } catch (error) {
     showMessage("Не вдалося завантажити дані. Перевірте, чи запущено json-server.");
   }
 }
 
+function applyFilters() {
+  const search = document.getElementById("search").value.trim().toLowerCase();
+  const type = document.getElementById("filter-type").value;
+  const status = document.getElementById("filter-status").value;
+  const sort = document.getElementById("sort").value;
+
+  const result = allComputers.filter((computer) => {
+    const matchesSearch =
+      computer.name.toLowerCase().includes(search) ||
+      computer.cpu.toLowerCase().includes(search);
+    const matchesType = type === "" || computer.type === type;
+    const matchesStatus = status === "" || computer.status === status;
+    return matchesSearch && matchesType && matchesStatus;
+  });
+
+  if (sort === "ram-desc") {
+    result.sort((a, b) => b.ram - a.ram);
+  } else if (sort === "ram-asc") {
+    result.sort((a, b) => a.ram - b.ram);
+  } else {
+    result.sort((a, b) => a.name.localeCompare(b.name, "uk"));
+  }
+
+  renderComputers(result);
+}
+
 function renderComputers(computers) {
   const tbody = document.getElementById("computers-body");
   tbody.innerHTML = "";
+
+  if (computers.length === 0) {
+    const row = document.createElement("tr");
+    const cell = document.createElement("td");
+    cell.colSpan = 7;
+    cell.textContent = "Нічого не знайдено.";
+    row.appendChild(cell);
+    tbody.appendChild(row);
+    return;
+  }
 
   for (const computer of computers) {
     const row = document.createElement("tr");
@@ -163,5 +200,9 @@ async function deleteComputer(computer) {
 
 document.getElementById("computer-form").addEventListener("submit", saveComputer);
 document.getElementById("cancel-button").addEventListener("click", resetForm);
+document.getElementById("search").addEventListener("input", applyFilters);
+document.getElementById("filter-type").addEventListener("change", applyFilters);
+document.getElementById("filter-status").addEventListener("change", applyFilters);
+document.getElementById("sort").addEventListener("change", applyFilters);
 
 loadComputers();

@@ -30,6 +30,26 @@
         <button type="button" id="cancel-button" hidden>Скасувати</button>
       </form>
 
+      <div class="toolbar">
+        <input type="text" id="search" placeholder="Пошук за назвою або процесором">
+        <select id="filter-type">
+          <option value="">Усі типи</option>
+          <option value="ноутбук">ноутбук</option>
+          <option value="ПК">ПК</option>
+        </select>
+        <select id="filter-status">
+          <option value="">Усі статуси</option>
+          <option value="available">Вільний</option>
+          <option value="booked">Заброньований</option>
+          <option value="rented">Виданий</option>
+        </select>
+        <select id="sort">
+          <option value="name">Порядок: за назвою</option>
+          <option value="ram-desc">ОЗП: від більшого</option>
+          <option value="ram-asc">ОЗП: від меншого</option>
+        </select>
+      </div>
+
       <table>
         <thead>
           <tr>
