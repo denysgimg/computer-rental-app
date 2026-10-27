@@ -16,6 +16,14 @@ let allComputers = [];
 let allClients = [];
 let allBookings = [];
 let editingId = null;
+let bookingFilter = "";
+let editingClientId = null;
+let clientFilter = "";
+
+// Один app.js підключено до трьох сторінок: визначаємо, на якій ми зараз.
+const hasComputersPage = document.getElementById("computers-body") !== null;
+const hasBookingsPage = document.getElementById("bookings-body") !== null;
+const hasClientsPage = document.getElementById("clients-body") !== null;
 
 /* ---------- Робота з сервером ---------- */
 
@@ -49,24 +57,84 @@ async function loadData() {
     allComputers = computers;
     allClients = clients;
     allBookings = bookings;
-    applyFilters();
-    fillBookingSelects();
-    renderBookings();
+    if (hasComputersPage) {
+      applyFilters();
+    }
+    if (hasBookingsPage) {
+      fillBookingSelects();
+      renderBookings();
+    }
+    if (hasClientsPage) {
+      renderClients();
+    }
   } catch (error) {
-    showMessage("Не вдалося завантажити дані. Перевірте, чи запущено JSON Server.");
+    showMessage(
+      "Не вдалося завантажити дані. Запустіть JSON Server командою npm start і оновіть сторінку.",
+      true,
+      hasComputersPage ? "message" : hasClientsPage ? "client-message" : "booking-message"
+    );
   }
 }
 
-/* ---------- Повідомлення ---------- */
+/* ---------- Спільні допоміжні функції ---------- */
 
 function showMessage(text, isError = true, elementId = "message") {
   const message = document.getElementById(elementId);
   message.textContent = text;
-  message.style.color = isError ? "#b00020" : "#1b7f3b";
+  message.className = text === "" ? "msg" : "msg " + (isError ? "msg-error" : "msg-ok");
 }
 
 function showBookingMessage(text, isError = true) {
   showMessage(text, isError, "booking-message");
+}
+
+function setText(id, value) {
+  document.getElementById(id).textContent = value;
+}
+
+function makeButton(text, onClick, extraClass = "") {
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = "row-btn " + extraClass;
+  button.textContent = text;
+  button.addEventListener("click", onClick);
+  return button;
+}
+
+function textCell(text, className = "") {
+  const cell = document.createElement("td");
+  cell.className = className;
+  cell.textContent = text;
+  return cell;
+}
+
+function emptyRow(columns, text) {
+  const row = document.createElement("tr");
+  const cell = document.createElement("td");
+  cell.colSpan = columns;
+  cell.className = "empty";
+  cell.textContent = text;
+  row.appendChild(cell);
+  return row;
+}
+
+function statusPill(kind, label) {
+  const pill = document.createElement("span");
+  pill.className = "pill pill-" + kind;
+  pill.textContent = label;
+  return pill;
+}
+
+function todayString() {
+  const now = new Date();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const day = String(now.getDate()).padStart(2, "0");
+  return `${now.getFullYear()}-${month}-${day}`;
+}
+
+function formatDate(isoDate) {
+  const [year, month, day] = isoDate.split("-");
+  return `${day}.${month}.${year}`;
 }
 
 /* ---------- Комп'ютери ---------- */
@@ -94,7 +162,22 @@ function applyFilters() {
     result.sort((a, b) => a.name.localeCompare(b.name, "uk"));
   }
 
+  updateComputerStats(status);
   renderComputers(result);
+}
+
+function updateComputerStats(activeStatus) {
+  const count = (status) =>
+    allComputers.filter((computer) => computer.status === status).length;
+
+  setText("stat-total", allComputers.length);
+  setText("stat-available", count("available"));
+  setText("stat-booked", count("booked"));
+  setText("stat-rented", count("rented"));
+
+  for (const button of document.querySelectorAll(".stat")) {
+    button.setAttribute("aria-pressed", String(button.dataset.status === activeStatus));
+  }
 }
 
 function renderComputers(computers) {
@@ -102,47 +185,38 @@ function renderComputers(computers) {
   tbody.innerHTML = "";
 
   if (computers.length === 0) {
-    const row = document.createElement("tr");
-    const cell = document.createElement("td");
-    cell.colSpan = 7;
-    cell.textContent = "Нічого не знайдено.";
-    row.appendChild(cell);
-    tbody.appendChild(row);
+    const text =
+      allComputers.length === 0
+        ? "Комп'ютерів ще немає. Додайте перший у формі ліворуч."
+        : "Нічого не знайдено. Змініть пошук або фільтри.";
+    tbody.appendChild(emptyRow(6, text));
     return;
   }
 
   for (const computer of computers) {
     const row = document.createElement("tr");
-    const values = [
-      computer.id,
-      computer.name,
-      computer.type,
-      computer.cpu,
-      computer.ram,
-      STATUS_LABELS[computer.status] || computer.status,
-    ];
-    for (const value of values) {
-      const cell = document.createElement("td");
-      cell.textContent = value;
-      row.appendChild(cell);
-    }
+
+    row.appendChild(textCell(computer.name, "name"));
+    row.appendChild(textCell(computer.type, "nowrap"));
+    row.appendChild(textCell(computer.cpu, "nowrap"));
+    row.appendChild(textCell(`${computer.ram} ГБ`, "nowrap"));
+
+    const statusCell = document.createElement("td");
+    statusCell.appendChild(
+      statusPill(computer.status, STATUS_LABELS[computer.status] || computer.status)
+    );
+    row.appendChild(statusCell);
 
     const actionsCell = document.createElement("td");
+    actionsCell.className = "actions";
     actionsCell.append(
       makeButton("Редагувати", () => startEdit(computer)),
-      makeButton("Видалити", () => deleteComputer(computer))
+      makeButton("Видалити", () => deleteComputer(computer), "danger")
     );
     row.appendChild(actionsCell);
 
     tbody.appendChild(row);
   }
-}
-
-function makeButton(text, onClick) {
-  const button = document.createElement("button");
-  button.textContent = text;
-  button.addEventListener("click", onClick);
-  return button;
 }
 
 function validateComputer(data) {
@@ -189,7 +263,7 @@ async function saveComputer(event) {
     showMessage(isEdit ? "Зміни збережено." : "Комп'ютер додано.", false);
     loadData();
   } catch (error) {
-    showMessage("Не вдалося зберегти комп'ютер. Перевірте JSON Server.");
+    showMessage("Не вдалося зберегти комп'ютер. Перевірте, чи запущено JSON Server.");
   }
 }
 
@@ -200,8 +274,9 @@ function startEdit(computer) {
   document.getElementById("cpu").value = computer.cpu;
   document.getElementById("ram").value = computer.ram;
   document.getElementById("form-title").textContent = "Редагувати комп'ютер";
-  document.getElementById("submit-button").textContent = "Зберегти";
+  document.getElementById("submit-button").textContent = "Зберегти зміни";
   document.getElementById("cancel-button").hidden = false;
+  document.getElementById("name").focus();
   showMessage("");
 }
 
@@ -233,13 +308,6 @@ async function deleteComputer(computer) {
 
 /* ---------- Бронювання ---------- */
 
-function todayString() {
-  const now = new Date();
-  const month = String(now.getMonth() + 1).padStart(2, "0");
-  const day = String(now.getDate()).padStart(2, "0");
-  return `${now.getFullYear()}-${month}-${day}`;
-}
-
 function computerName(id) {
   const computer = allComputers.find((item) => item.id === id);
   return computer ? computer.name : "(видалено)";
@@ -267,6 +335,16 @@ function fillSelect(select, items) {
 function fillBookingSelects() {
   fillSelect(document.getElementById("booking-computer"), allComputers);
   fillSelect(document.getElementById("booking-client"), allClients);
+  updateAvailabilityHint();
+}
+
+function readBookingForm() {
+  return {
+    computerId: document.getElementById("booking-computer").value,
+    clientId: document.getElementById("booking-client").value,
+    startDate: document.getElementById("booking-start").value,
+    endDate: document.getElementById("booking-end").value,
+  };
 }
 
 // Період перетинається, якщо початок нового не пізніше кінця наявного
@@ -300,6 +378,31 @@ function validateBooking(data) {
   return null;
 }
 
+// Підказка під формою показує доступність ще до натискання кнопки.
+function updateAvailabilityHint() {
+  const hint = document.getElementById("availability-hint");
+  const data = readBookingForm();
+  let text;
+  let kind;
+
+  if (data.computerId === "" || data.startDate === "" || data.endDate === "") {
+    text = "Оберіть комп'ютер і період, щоб перевірити доступність.";
+    kind = "idle";
+  } else if (data.endDate < data.startDate) {
+    text = "Дата завершення раніше дати початку.";
+    kind = "error";
+  } else if (hasOverlap(data)) {
+    text = "На цей період комп'ютер зайнятий.";
+    kind = "error";
+  } else {
+    text = "На цей період комп'ютер вільний.";
+    kind = "ok";
+  }
+
+  hint.textContent = text;
+  hint.className = "hint hint-" + kind;
+}
+
 // Статус комп'ютера обчислюється за його бронюваннями.
 async function syncComputerStatus(computerId) {
   const bookings = (await fetchJson("/bookings")).filter(
@@ -317,13 +420,7 @@ async function syncComputerStatus(computerId) {
 async function saveBooking(event) {
   event.preventDefault();
 
-  const data = {
-    computerId: document.getElementById("booking-computer").value,
-    clientId: document.getElementById("booking-client").value,
-    startDate: document.getElementById("booking-start").value,
-    endDate: document.getElementById("booking-end").value,
-    status: "booked",
-  };
+  const data = { ...readBookingForm(), status: "booked" };
 
   const error = validateBooking(data);
   if (error) {
@@ -335,10 +432,11 @@ async function saveBooking(event) {
     await sendJson("/bookings", "POST", data);
     await syncComputerStatus(data.computerId);
     document.getElementById("booking-form").reset();
+    document.getElementById("booking-end").min = todayString();
     showBookingMessage("Бронювання створено.", false);
-    loadData();
+    await loadData();
   } catch (error) {
-    showBookingMessage("Не вдалося створити бронювання. Перевірте JSON Server.");
+    showBookingMessage("Не вдалося створити бронювання. Перевірте, чи запущено JSON Server.");
   }
 }
 
@@ -380,51 +478,88 @@ async function cancelBooking(booking) {
   }
 }
 
+function isOverdue(booking) {
+  return booking.status === "rented" && booking.endDate < todayString();
+}
+
+function matchesBookingFilter(booking) {
+  if (bookingFilter === "") {
+    return true;
+  }
+  if (bookingFilter === "overdue") {
+    return isOverdue(booking);
+  }
+  return booking.status === bookingFilter;
+}
+
+function updateBookingStats() {
+  const count = (status) =>
+    allBookings.filter((booking) => booking.status === status).length;
+
+  setText("stat-b-all", allBookings.length);
+  setText("stat-b-booked", count("booked"));
+  setText("stat-b-rented", count("rented"));
+  setText("stat-b-overdue", allBookings.filter(isOverdue).length);
+  setText("stat-b-returned", count("returned"));
+
+  for (const button of document.querySelectorAll(".stat")) {
+    button.setAttribute("aria-pressed", String(button.dataset.status === bookingFilter));
+  }
+}
+
 function renderBookings() {
   const tbody = document.getElementById("bookings-body");
   tbody.innerHTML = "";
+  updateBookingStats();
 
-  if (allBookings.length === 0) {
-    const row = document.createElement("tr");
-    const cell = document.createElement("td");
-    cell.colSpan = 6;
-    cell.textContent = "Бронювань поки немає.";
-    row.appendChild(cell);
-    tbody.appendChild(row);
+  const visible = allBookings
+    .filter(matchesBookingFilter)
+    .sort((a, b) => b.startDate.localeCompare(a.startDate));
+
+  if (visible.length === 0) {
+    const text =
+      allBookings.length === 0
+        ? "Бронювань ще немає. Створіть перше у формі ліворуч."
+        : "Немає бронювань з таким статусом.";
+    tbody.appendChild(emptyRow(5, text));
     return;
   }
 
-  const sorted = [...allBookings].sort((a, b) =>
-    b.startDate.localeCompare(a.startDate)
-  );
-
-  for (const booking of sorted) {
+  for (const booking of visible) {
     const row = document.createElement("tr");
-    const values = [
-      computerName(booking.computerId),
-      clientName(booking.clientId),
-      booking.startDate,
-      booking.endDate,
-      BOOKING_STATUS_LABELS[booking.status] || booking.status,
-    ];
-    for (const value of values) {
-      const cell = document.createElement("td");
-      cell.textContent = value;
-      row.appendChild(cell);
+
+    row.appendChild(textCell(computerName(booking.computerId), "name"));
+    row.appendChild(textCell(clientName(booking.clientId)));
+    row.appendChild(
+      textCell(
+        `${formatDate(booking.startDate)} — ${formatDate(booking.endDate)}`,
+        "nowrap"
+      )
+    );
+
+    const statusCell = document.createElement("td");
+    statusCell.appendChild(
+      statusPill(booking.status, BOOKING_STATUS_LABELS[booking.status] || booking.status)
+    );
+    if (isOverdue(booking)) {
+      const tag = document.createElement("span");
+      tag.className = "tag-overdue";
+      tag.textContent = "Прострочено";
+      statusCell.appendChild(tag);
     }
+    row.appendChild(statusCell);
 
     const actionsCell = document.createElement("td");
+    actionsCell.className = "actions";
     if (booking.status === "booked") {
       actionsCell.append(
-        makeButton("Видати", () => changeBookingStatus(booking, "rented")),
-        makeButton("Скасувати", () => cancelBooking(booking))
+        makeButton("Видати", () => changeBookingStatus(booking, "rented"), "main"),
+        makeButton("Скасувати", () => cancelBooking(booking), "danger")
       );
     } else if (booking.status === "rented") {
       actionsCell.append(
-        makeButton("Повернути", () => changeBookingStatus(booking, "returned"))
+        makeButton("Повернути", () => changeBookingStatus(booking, "returned"), "main")
       );
-    } else {
-      actionsCell.textContent = "—";
     }
     row.appendChild(actionsCell);
 
@@ -432,14 +567,219 @@ function renderBookings() {
   }
 }
 
+/* ---------- Клієнти ---------- */
+
+function clientBookings(clientId) {
+  return allBookings.filter((b) => String(b.clientId) === String(clientId));
+}
+
+// Що клієнт має зараз: виданий комп'ютер, бронювання або нічого.
+function clientState(clientId) {
+  const list = clientBookings(clientId);
+  if (list.some((b) => b.status === "rented")) {
+    return "rented";
+  }
+  if (list.some((b) => b.status === "booked")) {
+    return "booked";
+  }
+  return "idle";
+}
+
+function validateClient(data) {
+  if (data.name === "") {
+    return "Вкажіть ім'я клієнта.";
+  }
+  if (!/^\+380\d{9}$/.test(data.phone)) {
+    return "Телефон має бути у форматі +380XXXXXXXXX.";
+  }
+  const duplicate = allClients.some(
+    (c) => c.phone === data.phone && String(c.id) !== String(editingClientId)
+  );
+  if (duplicate) {
+    return "Клієнт із таким телефоном уже існує.";
+  }
+  return null;
+}
+
+async function saveClient(event) {
+  event.preventDefault();
+
+  const data = {
+    name: document.getElementById("client-name").value.trim(),
+    phone: document.getElementById("client-phone").value.trim(),
+  };
+
+  const error = validateClient(data);
+  if (error) {
+    showMessage(error, true, "client-message");
+    return;
+  }
+
+  const isEdit = editingClientId !== null;
+  try {
+    if (isEdit) {
+      await sendJson(`/clients/${editingClientId}`, "PATCH", data);
+    } else {
+      await sendJson("/clients", "POST", data);
+    }
+    resetClientForm();
+    showMessage(isEdit ? "Зміни збережено." : "Клієнта додано.", false, "client-message");
+    loadData();
+  } catch (error) {
+    showMessage("Не вдалося зберегти клієнта. Перевірте, чи запущено JSON Server.", true, "client-message");
+  }
+}
+
+function startClientEdit(client) {
+  editingClientId = client.id;
+  document.getElementById("client-name").value = client.name;
+  document.getElementById("client-phone").value = client.phone;
+  document.getElementById("client-form-title").textContent = "Редагувати клієнта";
+  document.getElementById("client-submit").textContent = "Зберегти зміни";
+  document.getElementById("client-cancel").hidden = false;
+  document.getElementById("client-name").focus();
+  showMessage("", true, "client-message");
+}
+
+function resetClientForm() {
+  editingClientId = null;
+  document.getElementById("client-form").reset();
+  document.getElementById("client-form-title").textContent = "Додати клієнта";
+  document.getElementById("client-submit").textContent = "Додати";
+  document.getElementById("client-cancel").hidden = true;
+}
+
+async function deleteClient(client) {
+  if (clientBookings(client.id).length > 0) {
+    showMessage("Не можна видалити клієнта, у якого є бронювання.", true, "client-message");
+    return;
+  }
+  if (!confirm(`Видалити клієнта «${client.name}»?`)) {
+    return;
+  }
+
+  try {
+    await sendJson(`/clients/${client.id}`, "DELETE");
+    showMessage("Клієнта видалено.", false, "client-message");
+    loadData();
+  } catch (error) {
+    showMessage("Не вдалося видалити клієнта.", true, "client-message");
+  }
+}
+
+function updateClientStats() {
+  const counts = { rented: 0, booked: 0, idle: 0 };
+  for (const client of allClients) {
+    counts[clientState(client.id)]++;
+  }
+  setText("stat-c-all", allClients.length);
+  setText("stat-c-rented", counts.rented);
+  setText("stat-c-booked", counts.booked);
+  setText("stat-c-idle", counts.idle);
+  for (const button of document.querySelectorAll(".stat")) {
+    button.setAttribute("aria-pressed", String(button.dataset.status === clientFilter));
+  }
+}
+
+function renderClients() {
+  updateClientStats();
+
+  const query = document.getElementById("client-search").value.trim().toLowerCase();
+  const shown = allClients.filter((client) => {
+    const matches =
+      client.name.toLowerCase().includes(query) || client.phone.includes(query);
+    return matches && (clientFilter === "" || clientState(client.id) === clientFilter);
+  });
+
+  const tbody = document.getElementById("clients-body");
+  tbody.innerHTML = "";
+  if (shown.length === 0) {
+    tbody.appendChild(
+      emptyRow(5, allClients.length === 0 ? "Клієнтів ще немає. Додайте першого." : "Нічого не знайдено. Змініть пошук або фільтр.")
+    );
+    return;
+  }
+
+  for (const client of shown) {
+    const row = document.createElement("tr");
+    row.appendChild(textCell(client.name, "name"));
+    row.appendChild(textCell(client.phone, "nowrap"));
+    row.appendChild(textCell(String(clientBookings(client.id).length), "nowrap"));
+
+    const stateCell = document.createElement("td");
+    const state = clientState(client.id);
+    if (state === "rented") {
+      stateCell.appendChild(statusPill("rented", "Має комп'ютер"));
+    } else if (state === "booked") {
+      stateCell.appendChild(statusPill("booked", "Є бронювання"));
+    } else {
+      stateCell.textContent = "—";
+    }
+    row.appendChild(stateCell);
+
+    const actions = document.createElement("td");
+    actions.className = "actions";
+    actions.appendChild(makeButton("Змінити", () => startClientEdit(client)));
+    actions.appendChild(makeButton("Видалити", () => deleteClient(client), "danger"));
+    row.appendChild(actions);
+
+    tbody.appendChild(row);
+  }
+}
+
 /* ---------- Події ---------- */
 
-document.getElementById("computer-form").addEventListener("submit", saveComputer);
-document.getElementById("cancel-button").addEventListener("click", resetForm);
-document.getElementById("search").addEventListener("input", applyFilters);
-document.getElementById("filter-type").addEventListener("change", applyFilters);
-document.getElementById("filter-status").addEventListener("change", applyFilters);
-document.getElementById("sort").addEventListener("change", applyFilters);
-document.getElementById("booking-form").addEventListener("submit", saveBooking);
+if (hasComputersPage) {
+  document.getElementById("computer-form").addEventListener("submit", saveComputer);
+  document.getElementById("cancel-button").addEventListener("click", resetForm);
+  document.getElementById("search").addEventListener("input", applyFilters);
+  document.getElementById("filter-type").addEventListener("change", applyFilters);
+  document.getElementById("filter-status").addEventListener("change", applyFilters);
+  document.getElementById("sort").addEventListener("change", applyFilters);
+
+  // Клік по смузі статусів вмикає або вимикає фільтр за статусом.
+  for (const button of document.querySelectorAll(".stat")) {
+    button.addEventListener("click", () => {
+      const select = document.getElementById("filter-status");
+      select.value = select.value === button.dataset.status ? "" : button.dataset.status;
+      applyFilters();
+    });
+  }
+}
+
+if (hasBookingsPage) {
+  const startInput = document.getElementById("booking-start");
+  const endInput = document.getElementById("booking-end");
+
+  startInput.min = todayString();
+  endInput.min = todayString();
+  startInput.addEventListener("input", () => {
+    endInput.min = startInput.value || todayString();
+    updateAvailabilityHint();
+  });
+  endInput.addEventListener("input", updateAvailabilityHint);
+  document.getElementById("booking-computer").addEventListener("change", updateAvailabilityHint);
+  document.getElementById("booking-form").addEventListener("submit", saveBooking);
+
+  for (const button of document.querySelectorAll(".stat")) {
+    button.addEventListener("click", () => {
+      bookingFilter = bookingFilter === button.dataset.status ? "" : button.dataset.status;
+      renderBookings();
+    });
+  }
+}
+
+if (hasClientsPage) {
+  document.getElementById("client-form").addEventListener("submit", saveClient);
+  document.getElementById("client-cancel").addEventListener("click", resetClientForm);
+  document.getElementById("client-search").addEventListener("input", renderClients);
+
+  for (const button of document.querySelectorAll(".stat")) {
+    button.addEventListener("click", () => {
+      clientFilter = clientFilter === button.dataset.status ? "" : button.dataset.status;
+      renderClients();
+    });
+  }
+}
 
 loadData();
