@@ -1,4 +1,4 @@
-const API_URL = "http://localhost:3000";
+const SERVER_URL = "http://localhost:5000";
 
 const STATUS_LABELS = {
   available: "Вільний",
@@ -20,7 +20,7 @@ let editingId = null;
 /* ---------- Робота з сервером ---------- */
 
 async function fetchJson(path) {
-  const response = await fetch(`${API_URL}${path}`);
+  const response = await fetch(`${SERVER_URL}${path}`);
   if (!response.ok) {
     throw new Error("Помилка сервера: " + response.status);
   }
@@ -28,7 +28,7 @@ async function fetchJson(path) {
 }
 
 async function sendJson(path, method, body) {
-  const response = await fetch(`${API_URL}${path}`, {
+  const response = await fetch(`${SERVER_URL}${path}`, {
     method: method,
     headers: { "Content-Type": "application/json" },
     body: body ? JSON.stringify(body) : undefined,
@@ -53,7 +53,7 @@ async function loadData() {
     fillBookingSelects();
     renderBookings();
   } catch (error) {
-    showMessage("Не вдалося завантажити дані. Перевірте, чи запущено json-server.");
+    showMessage("Не вдалося завантажити дані. Перевірте, чи запущено JSON Server.");
   }
 }
 
@@ -189,7 +189,7 @@ async function saveComputer(event) {
     showMessage(isEdit ? "Зміни збережено." : "Комп'ютер додано.", false);
     loadData();
   } catch (error) {
-    showMessage("Не вдалося зберегти комп'ютер. Перевірте json-server.");
+    showMessage("Не вдалося зберегти комп'ютер. Перевірте JSON Server.");
   }
 }
 
@@ -338,7 +338,7 @@ async function saveBooking(event) {
     showBookingMessage("Бронювання створено.", false);
     loadData();
   } catch (error) {
-    showBookingMessage("Не вдалося створити бронювання. Перевірте json-server.");
+    showBookingMessage("Не вдалося створити бронювання. Перевірте JSON Server.");
   }
 }
 
