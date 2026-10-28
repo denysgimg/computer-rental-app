@@ -19,11 +19,13 @@ let editingId = null;
 let bookingFilter = "";
 let editingClientId = null;
 let clientFilter = "";
+let currentClientId = null;
 
-// Один app.js підключено до трьох сторінок: визначаємо, на якій ми зараз.
+// Один app.js підключено до чотирьох сторінок: визначаємо, на якій ми зараз.
 const hasComputersPage = document.getElementById("computers-body") !== null;
 const hasBookingsPage = document.getElementById("bookings-body") !== null;
 const hasClientsPage = document.getElementById("clients-body") !== null;
+const hasCatalogPage = document.getElementById("catalog") !== null;
 
 /* ---------- Робота з сервером ---------- */
 
@@ -67,16 +69,34 @@ async function loadData() {
     if (hasClientsPage) {
       renderClients();
     }
+    if (hasCatalogPage) {
+      restoreLogin();
+      renderCatalog();
+    }
   } catch (error) {
     showMessage(
       "Не вдалося завантажити дані. Запустіть JSON Server командою npm start і оновіть сторінку.",
       true,
-      hasComputersPage ? "message" : hasClientsPage ? "client-message" : "booking-message"
+      pageMessageId()
     );
   }
 }
 
 /* ---------- Спільні допоміжні функції ---------- */
+
+// Кожна сторінка має власний елемент для повідомлень.
+function pageMessageId() {
+  if (hasComputersPage) {
+    return "message";
+  }
+  if (hasClientsPage) {
+    return "client-message";
+  }
+  if (hasCatalogPage) {
+    return "catalog-message";
+  }
+  return "booking-message";
+}
 
 function showMessage(text, isError = true, elementId = "message") {
   const message = document.getElementById(elementId);
@@ -727,6 +747,296 @@ function renderClients() {
   }
 }
 
+/* ---------- Каталог для клієнта ---------- */
+
+function catalogMessage(text, isError = true) {
+  showMessage(text, isError, "catalog-message");
+}
+
+// Запам'ятовуємо клієнта в браузері, щоб не вводити телефон щоразу.
+function rememberClient(id) {
+  try {
+    if (id === null) {
+      localStorage.removeItem("rentalClientId");
+    } else {
+      localStorage.setItem("rentalClientId", id);
+    }
+  } catch (error) {
+    // Сховище недоступне: просто працюємо без запам'ятовування.
+  }
+}
+
+function restoreLogin() {
+  if (currentClientId === null) {
+    try {
+      currentClientId = localStorage.getItem("rentalClientId");
+    } catch (error) {
+      currentClientId = null;
+    }
+  }
+  if (currentClientId !== null && !allClients.some((c) => c.id === currentClientId)) {
+    currentClientId = null;
+    rememberClient(null);
+  }
+  const client = allClients.find((c) => c.id === currentClientId);
+  document.getElementById("login-form").hidden = client !== undefined;
+  document.getElementById("who-info").hidden = client === undefined;
+  document.getElementById("my-section").hidden = client === undefined;
+  if (client) {
+    setText("who-name", client.name);
+  }
+}
+
+async function loginClient(event) {
+  event.preventDefault();
+  const phone = document.getElementById("login-phone").value.trim();
+  const nameField = document.getElementById("register-field");
+  const found = allClients.find((c) => c.phone === phone);
+
+  if (found) {
+    currentClientId = found.id;
+    rememberClient(found.id);
+    nameField.hidden = true;
+    document.getElementById("login-button").textContent = "Увійти";
+    catalogMessage("Вітаємо, " + found.name + "!", false);
+    restoreLogin();
+    renderCatalog();
+    return;
+  }
+
+  // Телефону немає в базі: просимо ім'я й реєструємо нового клієнта.
+  const data = { name: document.getElementById("login-name").value.trim(), phone: phone };
+  if (nameField.hidden) {
+    if (!/^\+380\d{9}$/.test(phone)) {
+      catalogMessage("Телефон має бути у форматі +380XXXXXXXXX.");
+      return;
+    }
+    nameField.hidden = false;
+    document.getElementById("login-button").textContent = "Зареєструватися";
+    document.getElementById("login-name").focus();
+    catalogMessage("Такого номера ще немає. Вкажіть ім'я, щоб зареєструватися.");
+    return;
+  }
+
+  const error = validateClient(data);
+  if (error) {
+    catalogMessage(error);
+    return;
+  }
+  try {
+    const response = await sendJson("/clients", "POST", data);
+    const created = await response.json();
+    currentClientId = created.id;
+    rememberClient(created.id);
+    nameField.hidden = true;
+    document.getElementById("login-button").textContent = "Увійти";
+    catalogMessage("Реєстрація пройшла успішно. Вітаємо, " + data.name + "!", false);
+    await loadData();
+  } catch (error) {
+    catalogMessage("Не вдалося зареєструвати клієнта. Перевірте, чи запущено JSON Server.");
+  }
+}
+
+function logoutClient() {
+  currentClientId = null;
+  rememberClient(null);
+  document.getElementById("login-phone").value = "";
+  document.getElementById("login-name").value = "";
+  restoreLogin();
+  renderCatalog();
+  catalogMessage("");
+}
+
+function readCatalogDates() {
+  return {
+    startDate: document.getElementById("cat-start").value,
+    endDate: document.getElementById("cat-end").value,
+  };
+}
+
+// Майбутні й поточні періоди, коли комп'ютер зайнятий (без імен клієнтів).
+function busyPeriods(computerId) {
+  return allBookings
+    .filter((b) => b.computerId === computerId && b.status !== "returned" && b.endDate >= todayString())
+    .sort((a, b) => a.startDate.localeCompare(b.startDate));
+}
+
+function renderCatalog() {
+  const dates = readCatalogDates();
+  const datesOk = dates.startDate !== "" && dates.endDate !== "" && dates.endDate >= dates.startDate;
+  const query = document.getElementById("cat-search").value.trim().toLowerCase();
+  const type = document.getElementById("cat-type").value;
+  const onlyFree = document.getElementById("cat-free").checked;
+
+  const rows = [];
+  for (const computer of allComputers) {
+    const matches =
+      (computer.name.toLowerCase().includes(query) || computer.cpu.toLowerCase().includes(query)) &&
+      (type === "" || computer.type === type);
+    if (!matches) {
+      continue;
+    }
+    const free = datesOk
+      ? !hasOverlap({ computerId: computer.id, startDate: dates.startDate, endDate: dates.endDate })
+      : null;
+    if (onlyFree && datesOk && !free) {
+      continue;
+    }
+    rows.push({ computer, free });
+  }
+
+  const hint = document.getElementById("catalog-summary");
+  if (dates.startDate !== "" && dates.endDate !== "" && !datesOk) {
+    hint.textContent = "Дата завершення раніше дати початку.";
+    hint.className = "hint hint-error";
+  } else if (datesOk) {
+    const freeCount = rows.filter((r) => r.free).length;
+    hint.textContent = `Вільні на ці дати: ${freeCount} з ${rows.length}.`;
+    hint.className = "hint hint-ok";
+  } else {
+    hint.textContent = "Вкажіть період, щоб побачити, які комп'ютери вільні саме на ці дати.";
+    hint.className = "hint hint-idle";
+  }
+
+  const box = document.getElementById("catalog");
+  box.innerHTML = "";
+  if (rows.length === 0) {
+    const empty = document.createElement("p");
+    empty.className = "hint hint-idle";
+    empty.textContent = "Нічого не знайдено. Змініть пошук або фільтри.";
+    box.appendChild(empty);
+  }
+
+  for (const { computer, free } of rows) {
+    const card = document.createElement("article");
+    card.className = "card";
+
+    let kind;
+    let label;
+    if (datesOk) {
+      kind = free ? "available" : "rented";
+      label = free ? "Вільний на ці дати" : "Зайнятий на ці дати";
+    } else {
+      kind = computer.status;
+      label = STATUS_LABELS[computer.status] || computer.status;
+    }
+    card.style.setProperty("--c", free === false || (free === null && computer.status === "rented") ? "#c23550" : free === null && computer.status === "booked" ? "#c98a00" : "#1f8a57");
+
+    const title = document.createElement("h3");
+    title.textContent = computer.name;
+    const specs = document.createElement("p");
+    specs.className = "specs";
+    specs.textContent = `${computer.type} · ${computer.cpu} · ${computer.ram} ГБ`;
+    const pillWrap = document.createElement("div");
+    pillWrap.appendChild(statusPill(kind, label));
+    card.append(title, specs, pillWrap);
+
+    const periods = busyPeriods(computer.id);
+    if (periods.length > 0) {
+      const list = document.createElement("ul");
+      list.className = "busy";
+      const caption = document.createElement("li");
+      const strong = document.createElement("strong");
+      strong.textContent = "Зайнято:";
+      caption.appendChild(strong);
+      list.appendChild(caption);
+      for (const b of periods.slice(0, 3)) {
+        const item = document.createElement("li");
+        item.textContent = `${formatDate(b.startDate)} — ${formatDate(b.endDate)}`;
+        list.appendChild(item);
+      }
+      card.appendChild(list);
+    }
+
+    const foot = document.createElement("div");
+    foot.className = "card-foot";
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "btn";
+    button.textContent = "Забронювати";
+    button.disabled = datesOk && !free;
+    button.addEventListener("click", () => bookAsClient(computer));
+    foot.appendChild(button);
+    card.appendChild(foot);
+
+    box.appendChild(card);
+  }
+
+  renderMyBookings();
+}
+
+async function bookAsClient(computer) {
+  if (currentClientId === null) {
+    catalogMessage("Щоб забронювати, спочатку увійдіть за номером телефону.");
+    document.getElementById("login-phone").focus();
+    return;
+  }
+  const dates = readCatalogDates();
+  const data = {
+    computerId: computer.id,
+    clientId: currentClientId,
+    startDate: dates.startDate,
+    endDate: dates.endDate,
+    status: "booked",
+  };
+  const error = validateBooking(data);
+  if (error) {
+    catalogMessage(error);
+    return;
+  }
+
+  try {
+    await sendJson("/bookings", "POST", data);
+    await syncComputerStatus(computer.id);
+    catalogMessage(`Готово: «${computer.name}» заброньовано на ${formatDate(data.startDate)} — ${formatDate(data.endDate)}.`, false);
+    await loadData();
+  } catch (error) {
+    catalogMessage("Не вдалося створити бронювання. Перевірте, чи запущено JSON Server.");
+  }
+}
+
+function renderMyBookings() {
+  const tbody = document.getElementById("my-body");
+  tbody.innerHTML = "";
+  const mine = allBookings
+    .filter((b) => b.clientId === currentClientId)
+    .sort((a, b) => b.startDate.localeCompare(a.startDate));
+
+  if (mine.length === 0) {
+    tbody.appendChild(emptyRow(4, "У вас ще немає бронювань. Оберіть комп'ютер вище."));
+    return;
+  }
+  for (const booking of mine) {
+    const row = document.createElement("tr");
+    row.appendChild(textCell(computerName(booking.computerId), "name"));
+    row.appendChild(textCell(`${formatDate(booking.startDate)} — ${formatDate(booking.endDate)}`, "nowrap"));
+    const statusCell = document.createElement("td");
+    statusCell.appendChild(statusPill(booking.status, BOOKING_STATUS_LABELS[booking.status] || booking.status));
+    row.appendChild(statusCell);
+    const actions = document.createElement("td");
+    actions.className = "actions";
+    if (booking.status === "booked") {
+      actions.appendChild(makeButton("Скасувати", () => cancelMyBooking(booking), "danger"));
+    }
+    row.appendChild(actions);
+    tbody.appendChild(row);
+  }
+}
+
+async function cancelMyBooking(booking) {
+  if (!confirm("Скасувати це бронювання?")) {
+    return;
+  }
+  try {
+    await sendJson(`/bookings/${booking.id}`, "DELETE");
+    await syncComputerStatus(booking.computerId);
+    catalogMessage("Бронювання скасовано.", false);
+    await loadData();
+  } catch (error) {
+    catalogMessage("Не вдалося скасувати бронювання.");
+  }
+}
+
 /* ---------- Події ---------- */
 
 if (hasComputersPage) {
@@ -780,6 +1090,23 @@ if (hasClientsPage) {
       renderClients();
     });
   }
+}
+
+if (hasCatalogPage) {
+  const startInput = document.getElementById("cat-start");
+  const endInput = document.getElementById("cat-end");
+  startInput.min = todayString();
+  endInput.min = todayString();
+  startInput.addEventListener("input", () => {
+    endInput.min = startInput.value || todayString();
+    renderCatalog();
+  });
+  endInput.addEventListener("input", renderCatalog);
+  document.getElementById("cat-search").addEventListener("input", renderCatalog);
+  document.getElementById("cat-type").addEventListener("change", renderCatalog);
+  document.getElementById("cat-free").addEventListener("change", renderCatalog);
+  document.getElementById("login-form").addEventListener("submit", loginClient);
+  document.getElementById("logout-button").addEventListener("click", logoutClient);
 }
 
 loadData();
